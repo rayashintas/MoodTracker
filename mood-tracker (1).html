@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Langit — Pelacak Mood Harian</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root{
+    --bg:#f5f3ee; --surface:#ffffff; --ink:#15161a; --ink-soft:#6b7280; --line:#e9e6df;
+    --pink:#ec1e79; --pink-1:#fde3f0; --pink-2:#fbd0e6;
+    --mint:#0ea672; --mint-1:#daf6e9; --mint-2:#c3f0da;
+    --blue:#2f6fed; --blue-1:#ddebfe; --blue-2:#c9dffb;
+    --purple:#7c4fe0; --purple-1:#e9e0fc; --purple-2:#dccffa;
+    --orange:#e88a2f;
+    --radius-lg:20px; --radius-md:12px; --radius-sm:8px;
+    --shadow:0 1px 2px rgba(21,22,26,0.04), 0 6px 20px -10px rgba(21,22,26,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',-apple-system,sans-serif;}
+  a{color:inherit;} button{font-family:inherit;}
+  [hidden]{display:none !important;}
+
+  .overlay{position:fixed; inset:0; background:rgba(21,22,26,0.55); z-index:50; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .overlay-card{background:var(--surface); border-radius:var(--radius-lg); padding:36px; max-width:560px; width:100%; max-height:90vh; overflow-y:auto; position:relative;}
+  .overlay-card h1{font-size:23px; font-weight:800; margin:0 0 8px;}
+  .overlay-card .sub{color:var(--ink-soft); font-size:14px; margin:0 0 24px; line-height:1.5;}
+  .overlay-close{position:absolute; top:16px; right:16px; background:none; border:none; font-size:20px; color:var(--ink-soft); cursor:pointer; line-height:1;}
+
+  /* progress dots dipakai wizard onboarding & entry */
+  .step-dots{display:flex; gap:6px; margin-bottom:22px;}
+  .step-dot{height:4px; flex:1; background:var(--line); border-radius:99px;}
+  .step-dot.done, .step-dot.active{background:var(--pink);}
+  .step-eyebrow{font-size:11px; font-weight:700; letter-spacing:0.08em; color:#a8a29a; text-transform:uppercase; margin-bottom:10px;}
+
+  .shell{display:flex; min-height:100vh;}
+  .sidebar{width:230px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--line); padding:24px 18px; position:sticky; top:0; height:100vh; overflow-y:auto;}
+  .logo{font-size:22px; font-weight:800; color:var(--pink); letter-spacing:-0.02em;}
+  .logo-sub{font-size:11px; color:var(--ink-soft); margin-left:2px;}
+  .nav-heading{font-size:11px; font-weight:700; letter-spacing:0.08em; color:#a8a29a; text-transform:uppercase; margin:24px 0 8px; padding:0 10px;}
+  .nav-item{display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:10px; font-size:14px; font-weight:600; color:#4b4b52; cursor:pointer; margin-bottom:2px; border:none; background:none; width:100%; text-align:left;}
+  .nav-item:hover{background:#f7f6f3;}
+  .nav-item.active{background:var(--pink-1); color:var(--pink);}
+  .nav-dot{width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0;}
+  .info-line{font-size:11.5px; color:var(--ink-soft); line-height:1.6; padding:0 10px;}
+
+  .main{flex:1; min-width:0;}
+  .topbar{background:var(--surface); border-bottom:1px solid var(--line); padding:14px 28px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .select-pill{border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:9px 14px; font-size:13px; font-weight:600; color:var(--ink);}
+  .spacer{flex:1;}
+  .btn-outline{border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:9px 16px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer;}
+  .btn-outline:hover{border-color:#c9c6bd;}
+  .btn-solid{border:none; background:var(--pink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer;}
+  .btn-solid:hover{background:#d81a6d;}
+  .avatar{width:38px; height:38px; border-radius:50%; background:var(--pink); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0; cursor:pointer; border:none;}
+
+  .content{padding:28px 32px 80px; max-width:1180px;}
+  h1.page-title{font-size:26px; font-weight:800; margin:0 0 4px;}
+  .page-sub{color:var(--ink-soft); font-size:14px; margin:0 0 24px;}
+
+  .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;}
+  @media (max-width:1000px){ .card-row{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:600px){ .card-row{grid-template-columns:1fr;} }
+  .stat-card{border-radius:var(--radius-lg); padding:22px; position:relative; overflow:hidden;}
+  .stat-card.c-pink{background:linear-gradient(160deg, var(--pink-1), var(--pink-2));}
+  .stat-card.c-mint{background:linear-gradient(160deg, var(--mint-1), var(--mint-2));}
+  .stat-card.c-blue{background:linear-gradient(160deg, var(--blue-1), var(--blue-2));}
+  .stat-card.c-purple{background:linear-gradient(160deg, var(--purple-1), var(--purple-2));}
+  .badge-pill{display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.65); padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; margin-bottom:14px;}
+  .badge-pill .dot{width:7px; height:7px; border-radius:50%;}
+  .c-pink .badge-pill .dot{background:var(--pink);} .c-pink .badge-pill{color:var(--pink);}
+  .c-mint .badge-pill .dot{background:var(--mint);} .c-mint .badge-pill{color:var(--mint);}
+  .c-blue .badge-pill .dot{background:var(--blue);} .c-blue .badge-pill{color:var(--blue);}
+  .c-purple .badge-pill .dot{background:var(--purple);} .c-purple .badge-pill{color:var(--purple);}
+  .stat-title{font-size:11.5px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#3c3c40; margin-bottom:10px;}
+  .stat-headline{font-size:38px; font-weight:800; letter-spacing:-0.02em; line-height:1;}
+  .stat-desc{font-size:13px; color:#55555c; margin:8px 0 14px;}
+  .progress-track{background:rgba(255,255,255,0.7); border-radius:999px; height:6px; margin-bottom:16px; overflow:hidden;}
+  .progress-fill{height:100%; border-radius:999px; background:rgba(21,22,26,0.55);}
+  .mini-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;}
+  .mini-stat{background:rgba(255,255,255,0.72); border-radius:10px; padding:9px 10px;}
+  .mini-val{font-size:14px; font-weight:800;}
+  .mini-lbl{font-size:10.5px; color:#5b5b62; font-weight:600; margin-top:1px;}
+  .mv-pink{color:var(--pink);} .mv-mint{color:var(--mint);} .mv-orange{color:var(--orange);} .mv-ink{color:var(--ink);}
+  .detail-link{font-size:13px; font-weight:700; color:#2b2b2f; text-decoration:none; display:inline-flex; align-items:center; gap:4px; cursor:pointer; background:none; border:none; padding:0;}
+  .detail-link:hover{text-decoration:underline;}
+
+  .section{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:26px; margin-bottom:20px; box-shadow:var(--shadow);}
+  .section h2{font-size:16px; font-weight:800; margin:0 0 4px;}
+  .section .section-sub{font-size:13px; color:var(--ink-soft); margin:0 0 20px;}
+
+  .field{margin-bottom:18px;} .field:last-child{margin-bottom:0;}
+  .field label{display:block; font-size:13px; font-weight:700; color:#3c3c40; margin-bottom:8px;}
+  .hint{font-size:12px; color:var(--ink-soft); margin-top:6px; line-height:1.5;}
+  input[type=text], input[type=date], textarea{width:100%; border:1px solid var(--line); background:#fbfaf8; color:var(--ink); padding:11px 13px; border-radius:10px; font-size:14px; font-family:'Inter',sans-serif;}
+  textarea{resize:vertical; min-height:80px;}
+  input:focus, textarea:focus{outline:2px solid var(--pink); outline-offset:1px; background:#fff;}
+
+  /* weather picker: kartu besar bertumpuk vertikal supaya deskripsi muat */
+  .weather-grid{display:flex; flex-direction:column; gap:10px;}
+  .weather-btn{display:flex; align-items:center; gap:14px; border:1.5px solid var(--line); background:#fbfaf8; border-radius:14px; padding:14px 16px; cursor:pointer; text-align:left; transition:all .12s;}
+  .weather-btn .emoji{font-size:28px; flex-shrink:0;}
+  .weather-btn .wtext strong{display:block; font-size:15px; font-weight:700;}
+  .weather-btn .wtext span{font-size:12.5px; color:var(--ink-soft);}
+  .weather-btn.selected{border-color:var(--pink); border-width:2px; background:var(--pink-1);}
+
+  .emotion-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  @media (max-width:480px){ .emotion-grid{grid-template-columns:1fr;} }
+  .emotion-btn{border:1.5px solid var(--line); background:#fbfaf8; border-radius:12px; padding:14px; cursor:pointer; font-size:14.5px; font-weight:700; text-align:center;}
+  .emotion-btn.selected{border-color:var(--pink); background:var(--pink-1); color:var(--pink);}
+
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{border:1.5px solid var(--line); background:#fbfaf8; color:#57565e; padding:10px 18px; border-radius:999px; font-size:13.5px; font-weight:600; cursor:pointer;}
+  .chip.selected{border-color:var(--pink); color:var(--pink); background:var(--pink-1);}
+
+  .style-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  @media (max-width:560px){ .style-grid{grid-template-columns:1fr;} }
+  .style-card{border:1.5px solid var(--line); background:#fbfaf8; border-radius:12px; padding:13px 15px; cursor:pointer;}
+  .style-card.selected{border-color:var(--pink); background:var(--pink-1);}
+  .style-card .st-title{font-size:13.5px; font-weight:700; margin-bottom:2px;}
+  .style-card .st-desc{font-size:12px; color:var(--ink-soft); line-height:1.4;}
+
+  .row{display:flex; align-items:center; justify-content:space-between; gap:16px;}
+  .toggle-wrap{display:flex; align-items:center; gap:10px;}
+  .toggle{width:38px; height:22px; border-radius:11px; background:var(--line); position:relative; cursor:pointer; transition:background .15s; flex-shrink:0;}
+  .toggle.on{background:var(--pink);}
+  .toggle::after{content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .15s;}
+  .toggle.on::after{left:18px;}
+  .toggle-label{font-size:13px; color:var(--ink);}
+
+  button.primary{background:var(--pink); color:#fff; border:none; padding:14px 22px; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; margin-top:20px; width:100%;}
+  button.primary:hover{background:#d81a6d;}
+  button.primary:disabled{background:#d8d5cd; color:#8b887f; cursor:not-allowed;}
+  button.secondary-link{background:none; border:none; color:var(--ink-soft); font-weight:600; font-size:13px; cursor:pointer; padding:0; margin-top:12px; display:block; text-align:center; width:100%;}
+  .status{font-size:13px; margin-top:12px; font-weight:600;}
+  .status.err{color:#c8654a;} .status.ok{color:var(--mint);}
+
+  /* landing choice */
+  .choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:760px;}
+  @media (max-width:640px){ .choice-grid{grid-template-columns:1fr;} }
+  .choice-card{border-radius:var(--radius-lg); padding:32px 26px; cursor:pointer; border:none; text-align:left; transition:transform .12s;}
+  .choice-card:hover{transform:translateY(-2px);}
+  .choice-card.c-a{background:linear-gradient(160deg, var(--pink-1), var(--pink-2));}
+  .choice-card.c-b{background:linear-gradient(160deg, var(--blue-1), var(--blue-2));}
+  .choice-card .c-emoji{font-size:34px; margin-bottom:14px;}
+  .choice-card h2{font-size:18px; font-weight:800; margin:0 0 6px;}
+  .choice-card p{font-size:13px; color:#55555c; margin:0;}
+
+  .sparkline{width:100%; height:90px; margin-bottom:8px;}
+  .trigger-bars{display:flex; flex-direction:column; gap:10px;}
+  .tbar-row{display:flex; align-items:center; gap:10px;}
+  .tbar-label{width:100px; flex-shrink:0; font-size:12.5px; color:var(--ink-soft); font-weight:600;}
+  .tbar-track{flex:1; background:#f0eee8; border-radius:5px; height:10px; overflow:hidden;}
+  .tbar-fill{height:100%; border-radius:5px;}
+  .tbar-val{width:32px; flex-shrink:0; font-size:12px; font-weight:700; text-align:right;}
+
+  .reco-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  @media (max-width:560px){ .reco-grid{grid-template-columns:1fr;} }
+  .reco-card{background:#fbfaf8; border:1px solid var(--line); border-left:3px solid var(--pink); border-radius:10px; padding:13px 15px;}
+  .reco-card.pro{border-left-color:#c8654a;}
+  .reco-card.ai{border-left-color:var(--purple); background:var(--purple-1); grid-column:1 / -1;}
+  .reco-card .r-title{font-size:13.5px; font-weight:700; margin-bottom:3px;}
+  .reco-card .r-desc{font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
+  .ai-badge{display:inline-block; background:var(--purple); color:#fff; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; margin-bottom:6px; letter-spacing:0.03em;}
+  .concern{background:#fdeee9; border:1px solid #eab4a1; color:#a4442b; border-radius:12px; padding:14px 16px; font-size:13.5px; line-height:1.6; margin-bottom:20px;}
+
+  .history-list{display:flex; flex-direction:column; gap:6px;}
+  .history-item{font-size:13px; padding:10px 0; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px;}
+  .history-item:last-child{border-bottom:none;}
+  .h-emoji{flex-shrink:0;}
+  .h-date{font-weight:700; width:88px; flex-shrink:0;}
+  .h-emotion{color:var(--ink); font-weight:600; width:90px; flex-shrink:0;}
+  .h-trigger{color:var(--ink-soft); width:100px; flex-shrink:0;}
+  .h-note{color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .empty{color:var(--ink-soft); font-size:13px; font-style:italic;}
+  footer{font-size:12px; color:var(--ink-soft); line-height:1.6; padding:4px 2px;}
+
+  .kv-row{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; gap:12px;}
+  .kv-row:last-child{border-bottom:none;}
+  .kv-label{color:var(--ink-soft); font-weight:600; flex-shrink:0;}
+  .kv-val{font-weight:700; text-align:right; word-break:break-all;}
+
+  @media (max-width:860px){ .sidebar{display:none;} .content{padding:20px 16px 60px;} }
+</style>
+</head>
+<body>
+
+<!-- ===== Onboarding wizard (blocking, typeform-style, sekali di awal) ===== -->
+<div class="overlay" id="onboardingGate">
+  <div class="overlay-card">
+
+    <div id="ob_step1">
+      <div class="step-dots"><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+      <p class="step-eyebrow">Selamat datang</p>
+      <h1>Siapa nama atau kode akses kamu?</h1>
+      <p class="sub">Dipakai untuk sapaan, dan memisahkan datamu dari orang lain kalau Sheet-nya dipakai bersama.</p>
+      <div class="field"><input type="text" id="ob_userName" placeholder="mis. Raya"></div>
+      <p class="status" id="ob_error1" style="display:none;"></p>
+      <button class="primary" id="ob_next1">Lanjut</button>
+    </div>
+
+    <div id="ob_step2" hidden>
+      <div class="step-dots"><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div></div>
+      <p class="step-eyebrow">Preferensi</p>
+      <h1>Saat mood-mu turun, apa yang biasanya membantu?</h1>
+      <p class="sub">Pilih satu atau lebih. Ini dipakai untuk menyesuaikan rekomendasi aktivitas nanti.</p>
+      <div class="style-grid" id="ob_styleGrid"></div>
+      <p class="status" id="ob_error2" style="display:none;"></p>
+      <button class="primary" id="ob_next2">Lanjut</button>
+      <button class="secondary-link" id="ob_back2">&larr; Kembali</button>
+    </div>
+
+    <div id="ob_step3" hidden>
+      <div class="step-dots"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot active"></div></div>
+      <p class="step-eyebrow">Terakhir</p>
+      <h1>Satu hal lagi</h1>
+      <div class="row" style="margin:20px 0 8px;">
+        <div class="toggle-wrap">
+          <div class="toggle on" id="ob_nudgeToggle"></div>
+          <span class="toggle-label">Ingatkan saya cari bantuan profesional kalau polanya terus mengkhawatirkan</span>
+        </div>
+      </div>
+      <button class="primary" id="ob_finish">Mulai pakai Langit</button>
+      <button class="secondary-link" id="ob_back3">&larr; Kembali</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== Profile editor modal ===== -->
+<div class="overlay" id="profileModal" hidden>
+  <div class="overlay-card">
+    <button class="overlay-close" id="pm_close">&times;</button>
+    <h1>Edit Profil</h1>
+    <p class="sub">Ubah nama atau preferensi coping kamu kapan saja.</p>
+    <div class="field"><label>Nama / Kode Akses</label><input type="text" id="pm_userName"></div>
+    <div class="field"><label>Gaya coping</label><div class="style-grid" id="pm_styleGrid"></div></div>
+    <div class="row" style="margin-bottom:20px;">
+      <div class="toggle-wrap">
+        <div class="toggle" id="pm_nudgeToggle"></div>
+        <span class="toggle-label">Ingatkan saya cari bantuan profesional kalau polanya terus mengkhawatirkan</span>
+      </div>
+    </div>
+    <p class="status" id="pm_status" style="display:none;"></p>
+    <button class="primary" id="pm_saveBtn">Simpan perubahan</button>
+    <div style="border-top:1px solid var(--line); margin-top:24px; padding-top:18px;">
+      <label class="row" style="font-size:13px; color:#a4442b; font-weight:600; cursor:pointer; justify-content:flex-start; gap:8px; margin-bottom:12px;">
+        <input type="checkbox" id="pm_alsoDeleteSheets" checked> Hapus juga data saya di Google Sheets (kalau ada)
+      </label>
+      <button class="btn-outline" id="pm_deleteAllBtn" style="width:100%; color:#c8654a; border-color:#eab4a1;">Hapus semua data saya</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Shell utama ===== -->
+<div class="shell" id="shell" hidden>
+  <aside class="sidebar">
+    <div><span class="logo">Langit</span> <span class="logo-sub">Mood Space</span></div>
+    <div class="nav-heading">Menu</div>
+    <button class="nav-item" data-view="landing"><span class="nav-dot"></span> Beranda</button>
+    <button class="nav-item" data-view="dashboard"><span class="nav-dot"></span> Dashboard</button>
+    <button class="nav-item" data-view="entry"><span class="nav-dot"></span> Mood Hari Ini</button>
+    <button class="nav-item" data-view="sync" id="navSync" hidden><span class="nav-dot"></span> Sinkronisasi</button>
+    <div class="nav-heading">Info</div>
+    <div class="info-line">Data tersimpan otomatis. Klik avatar di kanan atas untuk ubah profil.</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <select class="select-pill" id="filterTrigger">
+        <option value="ALL">Semua Trigger</option>
+        <option value="KELUARGA">Keluarga</option>
+        <option value="PERTEMANAN">Pertemanan</option>
+        <option value="PERCINTAAN">Percintaan</option>
+        <option value="PEKERJAAN">Pekerjaan</option>
+        <option value="LAINNYA">Lainnya</option>
+      </select>
+      <select class="select-pill" id="filterRange">
+        <option value="7">7 Hari Terakhir</option>
+        <option value="30" selected>30 Hari Terakhir</option>
+        <option value="90">90 Hari Terakhir</option>
+        <option value="ALL">Semua Waktu</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="btn-outline" id="exportBtn">&darr; Export CSV</button>
+      <button class="btn-solid" id="refreshBtn">&#8635; Muat Ulang</button>
+      <button class="avatar" id="avatarBadge">U</button>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== VIEW: Landing choice ===== -->
+      <div id="view-landing">
+        <h1 class="page-title" id="landingGreeting">Selamat Datang</h1>
+        <p class="page-sub">Mau ngapain hari ini?</p>
+        <div class="choice-grid">
+          <button class="choice-card c-a" data-goto="entry">
+            <div class="c-emoji">📝</div>
+            <h2>Isi Mood Hari Ini</h2>
+            <p>Catat cuaca hati, emosi, dan apa yang memicunya.</p>
+          </button>
+          <button class="choice-card c-b" data-goto="dashboard">
+            <div class="c-emoji">📊</div>
+            <h2>Lihat Dashboard</h2>
+            <p>Lihat pola, tren, dan rekomendasi dari catatanmu.</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== VIEW: Dashboard ===== -->
+      <div id="view-dashboard" hidden>
+        <h1 class="page-title" id="welcomeTitle">Dashboard</h1>
+        <p class="page-sub">Ringkasan mood kamu &middot; <span id="rangeLabel">30 hari terakhir</span></p>
+
+        <div class="card-row">
+          <div class="stat-card c-pink">
+            <div class="badge-pill"><span class="dot"></span> Indeks Mood</div>
+            <div class="stat-title">Rata-rata Mood</div>
+            <div class="stat-headline" id="s1Headline">0%</div>
+            <div class="stat-desc" id="s1Desc">Belum ada data</div>
+            <div class="progress-track"><div class="progress-fill" id="s1Bar" style="width:0%"></div></div>
+            <div class="mini-grid">
+              <div class="mini-stat"><div class="mini-val mv-mint" id="s1Highest">–</div><div class="mini-lbl">Tertinggi</div></div>
+              <div class="mini-stat"><div class="mini-val mv-orange" id="s1Lowest">–</div><div class="mini-lbl">Terendah</div></div>
+              <div class="mini-stat"><div class="mini-val mv-ink" id="s1Count">0</div><div class="mini-lbl">Total Catatan</div></div>
+              <div class="mini-stat"><div class="mini-val mv-pink" id="s1Days">0</div><div class="mini-lbl">Hari Aktif</div></div>
+            </div>
+            <button class="detail-link" data-scroll="#detailSection">Lihat Detail &rarr;</button>
+          </div>
+
+          <div class="stat-card c-mint">
+            <div class="badge-pill"><span class="dot"></span> Trigger</div>
+            <div class="stat-title">Trigger Terbanyak</div>
+            <div class="stat-headline" id="s2Headline">0%</div>
+            <div class="stat-desc" id="s2Desc">Belum ada data</div>
+            <div class="progress-track"><div class="progress-fill" id="s2Bar" style="width:0%"></div></div>
+            <div class="mini-grid">
+              <div class="mini-stat"><div class="mini-val mv-pink" id="s2Keluarga">0</div><div class="mini-lbl">Keluarga</div></div>
+              <div class="mini-stat"><div class="mini-val mv-mint" id="s2Pertemanan">0</div><div class="mini-lbl">Pertemanan</div></div>
+              <div class="mini-stat"><div class="mini-val mv-orange" id="s2Percintaan">0</div><div class="mini-lbl">Percintaan</div></div>
+              <div class="mini-stat"><div class="mini-val mv-ink" id="s2Pekerjaan">0</div><div class="mini-lbl">Pekerjaan</div></div>
+            </div>
+            <button class="detail-link" data-scroll="#detailSection">Lihat Detail &rarr;</button>
+          </div>
+
+          <div class="stat-card c-blue">
+            <div class="badge-pill"><span class="dot"></span> Pola</div>
+            <div class="stat-title">Mood Rendah</div>
+            <div class="stat-headline" id="s3Headline">0%</div>
+            <div class="stat-desc" id="s3Desc">dari catatan pada rentang ini</div>
+            <div class="progress-track"><div class="progress-fill" id="s3Bar" style="width:0%"></div></div>
+            <div class="mini-grid">
+              <div class="mini-stat"><div class="mini-val mv-orange" id="s3Streak">0</div><div class="mini-lbl">Streak Saat Ini</div></div>
+              <div class="mini-stat"><div class="mini-val mv-ink" id="s3LowCount">0</div><div class="mini-lbl">Total Rendah</div></div>
+              <div class="mini-stat"><div class="mini-val mv-pink" id="s3Emotion">–</div><div class="mini-lbl">Emosi Dominan</div></div>
+              <div class="mini-stat"><div class="mini-val mv-mint" id="s3Status">Aman</div><div class="mini-lbl">Status</div></div>
+            </div>
+            <button class="detail-link" data-scroll="#detailSection">Lihat Detail &rarr;</button>
+          </div>
+
+          <div class="stat-card c-purple">
+            <div class="badge-pill"><span class="dot"></span> Preferensi</div>
+            <div class="stat-title">Rekomendasi</div>
+            <div class="stat-headline" id="s4Headline">0%</div>
+            <div class="stat-desc" id="s4Desc">Preferensi belum diisi</div>
+            <div class="progress-track"><div class="progress-fill" id="s4Bar" style="width:0%"></div></div>
+            <div class="mini-grid">
+              <div class="mini-stat"><div class="mini-val mv-pink" id="s4Styles">0</div><div class="mini-lbl">Gaya Dipilih</div></div>
+              <div class="mini-stat"><div class="mini-val mv-mint" id="s4Reco">0</div><div class="mini-lbl">Rekomendasi Aktif</div></div>
+              <div class="mini-stat"><div class="mini-val mv-ink" id="s4Nudge">–</div><div class="mini-lbl">Nudge Profesional</div></div>
+              <div class="mini-stat"><div class="mini-val mv-orange" id="s4Onboard">Belum</div><div class="mini-lbl">Status</div></div>
+            </div>
+            <button class="detail-link" id="editProfileLink">Lengkapi &rarr;</button>
+          </div>
+        </div>
+
+        <div class="section" id="detailSection">
+          <h2>Detail &amp; Riwayat</h2>
+          <p class="section-sub" id="detailSub">Belum ada catatan pada rentang &amp; filter ini.</p>
+          <div id="detailEmpty" class="empty">Buka menu "Mood Hari Ini" untuk mulai mencatat.</div>
+          <div id="detailContent" style="display:none;">
+            <div id="concernBanner" class="concern" style="display:none;"></div>
+            <label class="hint" style="display:block; margin-bottom:8px; font-weight:700; color:var(--ink);">Tren mood</label>
+            <svg class="sparkline" id="sparkline" viewBox="0 0 600 90" preserveAspectRatio="none"></svg>
+            <label class="hint" style="display:block; margin:20px 0 8px; font-weight:700; color:var(--ink);">Rata-rata mood per trigger</label>
+            <div class="trigger-bars" id="triggerBars"></div>
+            <label class="hint" style="display:block; margin:20px 0 8px; font-weight:700; color:var(--ink);">Rekomendasi untuk kamu</label>
+            <div class="reco-grid" id="recoGrid"></div>
+            <div class="hint" id="recoOnboardingNudge" style="display:none;">Lengkapi preferensi coping (klik avatar di kanan atas) supaya rekomendasi ini dipersonalisasi.</div>
+            <label class="hint" style="display:block; margin:20px 0 8px; font-weight:700; color:var(--ink);">Riwayat catatan</label>
+            <div class="history-list" id="historyList"></div>
+          </div>
+        </div>
+
+        <footer>Catatan: pelacakan ini untuk membantu kamu mengenali pola diri sendiri, bukan pengganti diagnosis atau konsultasi profesional.</footer>
+      </div>
+
+      <!-- ===== VIEW: Mood Hari Ini (wizard 4 langkah) ===== -->
+      <div id="view-entry" hidden>
+
+        <div id="e_step1">
+          <div class="step-dots"><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+          <h1 class="page-title">Gimana cuaca hatimu hari ini?</h1>
+          <p class="page-sub">Pilih yang paling menggambarkan perasaanmu.</p>
+          <div class="weather-grid" id="weatherGrid"></div>
+        </div>
+
+        <div id="e_step2" hidden>
+          <div class="step-dots"><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+          <h1 class="page-title">Lebih tepatnya, apa yang kamu rasakan?</h1>
+          <p class="page-sub" id="e_step2sub">Pilih satu yang paling dekat.</p>
+          <div class="emotion-grid" id="emotionGrid"></div>
+          <button class="secondary-link" id="e_back2">&larr; Ganti cuaca</button>
+        </div>
+
+        <div id="e_step3" hidden>
+          <div class="step-dots"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div></div>
+          <h1 class="page-title">Apa yang memicunya?</h1>
+          <p class="page-sub">Pilih satu sumber utama.</p>
+          <div class="chip-row" id="triggerRow"></div>
+          <div class="field" id="triggerCustomField" hidden style="margin-top:16px;">
+            <label>Ceritakan singkat pemicunya</label>
+            <input type="text" id="triggerCustomInput" placeholder="mis. Konflik dengan tetangga">
+          </div>
+          <p class="status" id="e_error3" style="display:none;"></p>
+          <button class="primary" id="e_next3">Lanjut</button>
+          <button class="secondary-link" id="e_back3">&larr; Kembali</button>
+        </div>
+
+        <div id="e_step4" hidden>
+          <div class="step-dots"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot active"></div></div>
+          <h1 class="page-title">Ada yang mau ditambahkan?</h1>
+          <p class="page-sub">Opsional — boleh dilewati.</p>
+          <div class="field"><textarea id="note" maxlength="2000" placeholder="Catatan bebas (tidak wajib)..."></textarea></div>
+          <button class="primary" id="saveEntryBtn">Simpan Mood Hari Ini</button>
+          <button class="secondary-link" id="e_back4">&larr; Kembali</button>
+          <div class="status" id="entryStatus" style="display:none;"></div>
+          <div id="entryDashboardLink" style="display:none; margin-top:14px; text-align:center;">
+            <a href="#" id="goToDashboardLink" style="color:var(--pink); font-weight:700; font-size:13.5px; text-decoration:none;">Lihat Dashboard &rarr;</a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== VIEW: Sinkronisasi (admin only, ?admin=1) ===== -->
+      <div id="view-sync" hidden>
+        <h1 class="page-title">Sinkronisasi Google Sheets</h1>
+        <p class="page-sub">Panel ini hanya terlihat untuk kamu (via parameter <code>?admin=1</code> di URL). Orang lain yang membuka link biasa tidak melihat menu ini dan tidak perlu mengatur apa pun.</p>
+        <div class="section">
+          <h2>Status</h2>
+          <div class="kv-row"><span class="kv-label">Web App URL</span><span class="kv-val" id="syncUrlDisplay">–</span></div>
+          <div class="kv-row"><span class="kv-label">Status koneksi (profil ini)</span><span class="kv-val" id="syncConnStatus">–</span></div>
+          <div class="kv-row"><span class="kv-label">Terakhir sinkron</span><span class="kv-val" id="syncLastTime">–</span></div>
+          <div class="kv-row"><span class="kv-label">Rekomendasi AI (Gemini)</span><span class="kv-val" id="syncAiStatus">–</span></div>
+          <button class="primary" id="manualSyncBtn">Sinkron Ulang Sekarang</button>
+          <div class="status" id="adminSyncStatus" style="display:none;"></div>
+        </div>
+        <div class="section">
+          <h2>Kelola Data di Sheets</h2>
+          <p class="section-sub">Hanya menghapus data milik profil "<span id="syncUserIdLabel">–</span>" yang aktif, bukan seluruh Sheet.</p>
+          <button class="btn-outline" id="deleteSheetDataBtn" style="color:#c8654a; border-color:#eab4a1;">Hapus data saya di Sheets</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Storage: window.storage kalau ada (artifact Claude), fallback
+// ke localStorage (dibuka langsung sebagai file / GitHub Pages).
+// ============================================================
+const Storage = {
+  hasClaudeStorage(){ return typeof window.storage !== 'undefined' && window.storage !== null; },
+  async get(key){
+    if (this.hasClaudeStorage()){
+      try{ const r = await window.storage.get(key, false); return r ? r.value : null; } catch(e){}
+    }
+    try{ return localStorage.getItem(key); } catch(e){ return null; }
+  },
+  async set(key, value){
+    let ok = false;
+    if (this.hasClaudeStorage()){ try{ await window.storage.set(key, value, false); ok = true; } catch(e){} }
+    try{ localStorage.setItem(key, value); ok = true; } catch(e){}
+    return ok;
+  },
+  async remove(key){
+    if (this.hasClaudeStorage()){ try{ await window.storage.delete(key, false); } catch(e){} }
+    try{ localStorage.removeItem(key); } catch(e){}
+  }
+};
+
+// ============================================================
+// Konfigurasi tetap — SUDAH DI-SET, tidak ditampilkan/diedit
+// lewat UI biasa (hanya terlihat sebagai teks di panel admin).
+// ============================================================
+const SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzByVb5eLnWKDgDjgu7gbLn2fIP2sB6Wb6l9o1yR7CnPWJ4HZxqi3YPFvM2MMgQw6cs/exec';
+const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+
+const PROFILE_KEY = 'mood_tracker_profile';
+const ENTRIES_KEY = 'mood_tracker_entries';
+const SYNCED_IDS_KEY = 'mood_tracker_synced_ids';
+const SYNC_META_KEY = 'mood_tracker_sync_meta';
+const AI_CACHE_KEY = 'mood_tracker_ai_cache';
+const LOW_THRESHOLD = 2;
+const AI_MIN_ENTRIES = 3;
+
+// ============================================================
+// Data statis
+// ============================================================
+const WEATHER_OPTIONS = [
+  { value:5, emoji:'🌞', label:'Cerah', desc:'Matahari terang', hex:'#f2c14e', emotions:['Bahagia','Bersyukur','Bangga','Bersemangat','Damai'] },
+  { value:4, emoji:'🌤️', label:'Berawan Cerah', desc:'Matahari dengan awan tipis', hex:'#e2a857', emotions:['Puas','Optimis','Santai','Fokus','Lega'] },
+  { value:3, emoji:'☁️', label:'Mendung', desc:'Langit abu-abu', hex:'#9aa1c2', emotions:['Bosan','Bingung','Hampa','Ragu','Lelah'] },
+  { value:2, emoji:'🌧️', label:'Hujan', desc:'Hujan ringan', hex:'#3f5c87', emotions:['Sedih','Kecewa','Cemas','Kesepian','Burnout'] },
+  { value:1, emoji:'⛈️', label:'Badai', desc:'Petir dan awan gelap', hex:'#453a63', emotions:['Marah','Panik','Sangat Tertekan','Putus Asa','Kewalahan'] },
+];
+const WEATHER_BY_VALUE = Object.fromEntries(WEATHER_OPTIONS.map(w => [w.value, w]));
+
+const TRIGGER_OPTIONS = [
+  { value:'KELUARGA', label:'Keluarga' },
+  { value:'PERTEMANAN', label:'Pertemanan' },
+  { value:'PERCINTAAN', label:'Percintaan' },
+  { value:'PEKERJAAN', label:'Pekerjaan' },
+  { value:'LAINNYA', label:'Input sendiri...' },
+];
+const TRIGGER_LABEL = Object.fromEntries(TRIGGER_OPTIONS.map(t => [t.value, t.label]));
+const TRIGGER_COLOR = { KELUARGA:'#e88a2f', PERTEMANAN:'#0ea672', PERCINTAAN:'#ec1e79', PEKERJAAN:'#2f6fed', LAINNYA:'#15161a' };
+
+const STYLE_OPTIONS = [
+  { value:'fisik', title:'Bergerak', desc:'Jalan kaki, olahraga ringan, peregangan.' },
+  { value:'sosial', title:'Terhubung', desc:'Cerita atau ngobrol dengan orang yang dipercaya.' },
+  { value:'kreatif', title:'Berekspresi', desc:'Menulis, menggambar, atau main musik.' },
+  { value:'menyendiri', title:'Menyendiri', desc:'Napas dalam, me-time, journaling.' },
+  { value:'profesional', title:'Bantuan profesional', desc:'Terbuka untuk saran bicara dengan psikolog/konselor.' },
+];
+
+const COPING_ACTIVITIES = [
+  { style:'fisik', title:'Jalan kaki 10 menit', desc:'Keluar ruangan sebentar, gerakkan badan, ganti suasana.' },
+  { style:'fisik', title:'Peregangan ringan', desc:'Regangkan leher, bahu, dan punggung selama 5 menit.' },
+  { style:'fisik', title:'Olahraga singkat', desc:'Naik-turun tangga atau gerakan kardio ringan 10-15 menit.' },
+  { style:'sosial', title:'Hubungi satu orang yang dipercaya', desc:'Kirim pesan atau telepon singkat, cukup untuk cerita.' },
+  { style:'sosial', title:'Ambil jeda ngobrol santai', desc:'Ngobrol hal ringan, tidak harus soal masalahnya.' },
+  { style:'kreatif', title:'Tulis bebas 5 menit', desc:'Tulis apa saja di kepala tanpa mengedit atau menyensor diri.' },
+  { style:'kreatif', title:'Gambar atau doodle', desc:'Coret-coret bebas di kertas, tanpa harus bagus.' },
+  { style:'kreatif', title:'Dengarkan atau buat musik', desc:'Putar playlist sesuai suasana hati, atau main alat musik.' },
+  { style:'menyendiri', title:'Napas dalam 4-7-8', desc:'Tarik napas 4 detik, tahan 7 detik, buang 8 detik. Ulangi 4-5x.' },
+  { style:'menyendiri', title:'Me-time tanpa layar', desc:'10-15 menit tanpa notifikasi, duduk tenang atau minum teh.' },
+  { style:'menyendiri', title:'Journaling reflektif', desc:'Tulis apa yang memicu perasaan ini dan apa yang dibutuhkan.' },
+  { style:'profesional', title:'Pertimbangkan bicara dengan profesional', desc:'Kalau pola ini terus berulang, psikolog/konselor bisa bantu cari akarnya.' },
+];
+
+// ============================================================
+// State
+// ============================================================
+let profile = null;
+let entries = [];
+let selectedStyles = new Set();
+let syncedIds = new Set();
+let syncMeta = { connected:false, lastSync:null, aiStatus:'not_attempted' };
+
+let currentView = 'landing';
+let e_weather = null, e_emotion = null, e_trigger = null;
+
+// ============================================================
+// Helpers
+// ============================================================
+const el = (id) => document.getElementById(id);
+function inferTimeOfDay(){ const h = new Date().getHours(); if (h < 11) return 'PAGI'; if (h < 15) return 'SIANG'; return 'MALAM'; }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function makeId(){ return `${Date.now()}-${Math.random().toString(36).slice(2,9)}`; }
+function currentUserId(){ return (profile && profile.name) ? profile.name.trim() : ''; }
+function setStatus(elm, text, kind){ elm.style.display = 'block'; elm.className = 'status' + (kind ? ' ' + kind : ''); elm.textContent = text; }
+function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ============================================================
+// Render pilihan statis yang tidak berubah antar render
+// ============================================================
+function renderStyleGrid(container, selectedSet){
+  container.innerHTML = '';
+  STYLE_OPTIONS.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'style-card' + (selectedSet.has(s.value) ? ' selected' : '');
+    d.dataset.value = s.value;
+    d.innerHTML = `<div class="st-title">${s.title}</div><div class="st-desc">${s.desc}</div>`;
+    d.addEventListener('click', () => {
+      if (selectedSet.has(s.value)) { selectedSet.delete(s.value); d.classList.remove('selected'); }
+      else { selectedSet.add(s.value); d.classList.add('selected'); }
+    });
+    container.appendChild(d);
+  });
+}
+
+// ============================================================
+// Onboarding wizard (3 langkah)
+// ============================================================
+let ob_styles = new Set();
+renderStyleGrid(el('ob_styleGrid'), ob_styles);
+el('ob_nudgeToggle').addEventListener('click', () => el('ob_nudgeToggle').classList.toggle('on'));
+
+el('ob_next1').addEventListener('click', () => {
+  if (!el('ob_userName').value.trim()){
+    setStatus(el('ob_error1'), 'Isi nama atau kode akses dulu.', 'err');
+    return;
+  }
+  el('ob_error1').style.display = 'none';
+  el('ob_step1').hidden = true; el('ob_step2').hidden = false;
+});
+el('ob_back2').addEventListener('click', () => { el('ob_step2').hidden = true; el('ob_step1').hidden = false; });
+el('ob_next2').addEventListener('click', () => {
+  if (ob_styles.size === 0){
+    setStatus(el('ob_error2'), 'Pilih minimal satu gaya coping.', 'err');
+    return;
+  }
+  el('ob_error2').style.display = 'none';
+  el('ob_step2').hidden = true; el('ob_step3').hidden = false;
+});
+el('ob_back3').addEventListener('click', () => { el('ob_step3').hidden = true; el('ob_step2').hidden = false; });
+
+el('ob_finish').addEventListener('click', async () => {
+  profile = {
+    name: el('ob_userName').value.trim(),
+    copingStyles: [...ob_styles],
+    wantsNudge: el('ob_nudgeToggle').classList.contains('on'),
+    onboarded: true,
+  };
+  await Storage.set(PROFILE_KEY, JSON.stringify(profile));
+  el('onboardingGate').hidden = true;
+  el('shell').hidden = false;
+  updateGreeting();
+  switchView('landing');
+  silentSync(); // background, tidak menunda apa pun
+});
+
+// ============================================================
+// Profile editor modal
+// ============================================================
+let pm_styles = new Set();
+el('avatarBadge').addEventListener('click', openProfileModal);
+el('editProfileLink').addEventListener('click', openProfileModal);
+el('pm_close').addEventListener('click', () => { el('profileModal').hidden = true; });
+el('pm_nudgeToggle').addEventListener('click', () => el('pm_nudgeToggle').classList.toggle('on'));
+
+function openProfileModal(){
+  pm_styles = new Set(profile ? (profile.copingStyles || []) : []);
+  renderStyleGrid(el('pm_styleGrid'), pm_styles);
+  el('pm_userName').value = profile ? (profile.name || '') : '';
+  el('pm_nudgeToggle').classList.toggle('on', !!(profile && profile.wantsNudge !== false));
+  el('pm_status').style.display = 'none';
+  el('profileModal').hidden = false;
+}
+
+el('pm_saveBtn').addEventListener('click', async () => {
+  if (!el('pm_userName').value.trim()){
+    setStatus(el('pm_status'), 'Nama/kode akses tidak boleh kosong.', 'err'); return;
+  }
+  if (pm_styles.size === 0){
+    setStatus(el('pm_status'), 'Pilih minimal satu gaya coping.', 'err'); return;
+  }
+  profile = {
+    name: el('pm_userName').value.trim(),
+    copingStyles: [...pm_styles],
+    wantsNudge: el('pm_nudgeToggle').classList.contains('on'),
+    onboarded: true,
+  };
+  await Storage.set(PROFILE_KEY, JSON.stringify(profile));
+  setStatus(el('pm_status'), 'Tersimpan.', 'ok');
+  updateGreeting();
+  renderDashboard();
+  pushProfileToSheets();
+});
+
+el('pm_deleteAllBtn').addEventListener('click', async () => {
+  if (!confirm('Yakin hapus semua data kamu (lokal' + (el('pm_alsoDeleteSheets').checked ? ' dan di Google Sheets' : '') + ')? Tindakan ini tidak bisa dibatalkan.')) return;
+  const userId = currentUserId();
+  if (el('pm_alsoDeleteSheets').checked && userId){
+    try{ await sheetsFetchJson(SHEETS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'deleteAll', userId }) }); } catch(e){}
+  }
+  await Storage.remove(PROFILE_KEY);
+  await Storage.remove(ENTRIES_KEY);
+  await Storage.remove(AI_CACHE_KEY);
+  syncedIds = new Set();
+  await Storage.set(SYNCED_IDS_KEY, JSON.stringify([]));
+  profile = null; entries = [];
+  el('profileModal').hidden = true;
+  el('shell').hidden = true;
+  el('ob_userName').value = ''; ob_styles = new Set(); renderStyleGrid(el('ob_styleGrid'), ob_styles);
+  el('ob_step1').hidden = false; el('ob_step2').hidden = true; el('ob_step3').hidden = true;
+  el('onboardingGate').hidden = false;
+});
+
+// ============================================================
+// Navigasi (sidebar + landing choice cards)
+// ============================================================
+function updateGreeting(){
+  const name = (profile && profile.name) ? profile.name.trim() : '';
+  el('landingGreeting').textContent = name ? `Halo, ${name}` : 'Selamat Datang';
+  el('welcomeTitle').textContent = name ? `Dashboard ${name}` : 'Dashboard';
+  el('avatarBadge').textContent = name ? name.trim().slice(0,2).toUpperCase() : 'U';
+}
+
+function switchView(name){
+  currentView = name;
+  ['landing','dashboard','entry','sync'].forEach(v => {
+    el('view-' + v).hidden = (v !== name);
+  });
+  document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'entry') resetEntryWizard();
+  if (name === 'sync') renderAdminSync();
+}
+
+document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+document.querySelectorAll('.choice-card[data-goto]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.goto));
+});
+document.querySelectorAll('[data-scroll]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchView('dashboard');
+    setTimeout(() => { const t = document.querySelector(btn.dataset.scroll); if (t) t.scrollIntoView({behavior:'smooth'}); }, 50);
+  });
+});
+if (isAdmin) el('navSync').hidden = false;
+
+// ============================================================
+// Entry wizard (4 langkah): cuaca -> emosi -> trigger -> catatan
+// ============================================================
+function renderWeatherGrid(){
+  const wrap = el('weatherGrid');
+  wrap.innerHTML = '';
+  WEATHER_OPTIONS.forEach(w => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'weather-btn' + (e_weather === w.value ? ' selected' : '');
+    btn.innerHTML = `<span class="emoji">${w.emoji}</span><span class="wtext"><strong>${w.label}</strong><span>${w.desc}</span></span>`;
+    btn.addEventListener('click', () => {
+      e_weather = w.value; e_emotion = null;
+      el('e_step1').hidden = true; el('e_step2').hidden = false;
+      renderEmotionGrid();
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function renderEmotionGrid(){
+  const w = WEATHER_BY_VALUE[e_weather];
+  el('e_step2sub').textContent = `${w.emoji} ${w.label} — pilih satu yang paling dekat.`;
+  const wrap = el('emotionGrid');
+  wrap.innerHTML = '';
+  w.emotions.forEach(emo => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emotion-btn';
+    btn.textContent = emo;
+    btn.addEventListener('click', () => {
+      e_emotion = emo;
+      el('e_step2').hidden = true; el('e_step3').hidden = false;
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+el('e_back2').addEventListener('click', () => { el('e_step2').hidden = true; el('e_step1').hidden = false; });
+el('e_back3').addEventListener('click', () => { el('e_step3').hidden = true; el('e_step2').hidden = false; });
+el('e_back4').addEventListener('click', () => { el('e_step4').hidden = true; el('e_step3').hidden = false; });
+
+TRIGGER_OPTIONS.forEach(t => {
+  const d = document.createElement('div');
+  d.className = 'chip'; d.textContent = t.label; d.dataset.value = t.value;
+  d.addEventListener('click', () => {
+    e_trigger = t.value;
+    [...el('triggerRow').children].forEach(c => c.classList.remove('selected'));
+    d.classList.add('selected');
+    el('triggerCustomField').hidden = (t.value !== 'LAINNYA');
+  });
+  el('triggerRow').appendChild(d);
+});
+
+el('e_next3').addEventListener('click', () => {
+  if (!e_trigger) return setStatus(el('e_error3'), 'Pilih salah satu trigger dulu.', 'err');
+  if (e_trigger === 'LAINNYA' && !el('triggerCustomInput').value.trim()) return setStatus(el('e_error3'), 'Ceritakan singkat pemicunya.', 'err');
+  el('e_error3').style.display = 'none';
+  el('e_step3').hidden = true; el('e_step4').hidden = false;
+});
+
+function resetEntryWizard(){
+  e_weather = null; e_emotion = null; e_trigger = null;
+  el('triggerCustomInput').value = ''; el('triggerCustomField').hidden = true;
+  el('note').value = '';
+  el('entryStatus').style.display = 'none';
+  el('entryDashboardLink').style.display = 'none';
+  [...el('triggerRow').children].forEach(c => c.classList.remove('selected'));
+  el('e_step1').hidden = false; el('e_step2').hidden = true; el('e_step3').hidden = true; el('e_step4').hidden = true;
+  renderWeatherGrid();
+}
+
+el('goToDashboardLink').addEventListener('click', (ev) => { ev.preventDefault(); switchView('dashboard'); });
+
+el('saveEntryBtn').addEventListener('click', async () => {
+  const entry = {
+    id: makeId(),
+    moodScore: e_weather,
+    moodLabel: WEATHER_BY_VALUE[e_weather].label,
+    emotion: e_emotion,
+    triggerCategory: e_trigger,
+    triggerCustom: e_trigger === 'LAINNYA' ? el('triggerCustomInput').value.trim() : '',
+    note: el('note').value.trim() || null,
+    entryDate: todayStr(),
+    timeOfDay: inferTimeOfDay(),
+    createdAt: new Date().toISOString(),
+  };
+
+  el('saveEntryBtn').disabled = true;
+  const newEntries = [...entries, entry];
+  const ok = await Storage.set(ENTRIES_KEY, JSON.stringify(newEntries));
+  el('saveEntryBtn').disabled = false;
+
+  if (ok){
+    entries = newEntries;
+    setStatus(el('entryStatus'), 'Tersimpan. Terima kasih sudah luangkan waktu mencatat.', 'ok');
+    el('entryDashboardLink').style.display = 'block';
+    pushEntryToSheets(entry); // silent, tidak menunda UI
+    maybeGetAiRecommendation(); // silent, cache di background untuk dashboard nanti
+  } else {
+    setStatus(el('entryStatus'), 'Gagal menyimpan catatan. Coba muat ulang halaman lalu coba lagi.', 'err');
+  }
+});
+
+// ============================================================
+// Sinkronisasi Google Sheets (otomatis & senyap untuk user biasa)
+// ============================================================
+async function sheetsFetchJson(urlStr, options){
+  const res = await fetch(urlStr, options);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Respons tidak dikenal dari Sheets.');
+  return data;
+}
+
+async function persistSyncMeta(){ await Storage.set(SYNC_META_KEY, JSON.stringify(syncMeta)); }
+async function persistSyncedIds(){ await Storage.set(SYNCED_IDS_KEY, JSON.stringify([...syncedIds])); }
+
+// Catatan teks bebas SENGAJA tidak pernah dikirim ke Sheets — Sheet ini
+// dipakai bersama beberapa orang, jadi isi jurnal pribadi tetap di
+// perangkat masing-masing. Field lain (cuaca/emosi/trigger/tanggal) tetap
+// terkirim supaya dashboard & insight tetap berfungsi lintas perangkat.
+function entryForSync(entry){
+  const { note, ...rest } = entry;
+  return { ...rest, note: '' };
+}
+
+async function pushEntryToSheets(entry){
+  const userId = currentUserId();
+  if (!SHEETS_WEB_APP_URL || !userId) return false;
+  try{
+    await sheetsFetchJson(SHEETS_WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'addEntry', userId, entry: entryForSync(entry) }),
+    });
+    syncedIds.add(entry.id);
+    await persistSyncedIds();
+    syncMeta.connected = true; syncMeta.lastSync = new Date().toISOString();
+    await persistSyncMeta();
+    return true;
+  } catch(e){ return false; }
+}
+
+async function pushProfileToSheets(){
+  const userId = currentUserId();
+  if (!SHEETS_WEB_APP_URL || !userId || !profile) return false;
+  try{
+    await sheetsFetchJson(SHEETS_WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'saveProfile', userId, profile }),
+    });
+    return true;
+  } catch(e){ return false; }
+}
+
+// Dipanggil otomatis (bukan lewat tombol) — tarik data lama & kirim yang belum tersinkron.
+async function silentSync(){
+  const userId = currentUserId();
+  if (!SHEETS_WEB_APP_URL || !userId) return;
+  try{
+    const listRes = await sheetsFetchJson(`${SHEETS_WEB_APP_URL}?action=list&userId=${encodeURIComponent(userId)}`);
+    const remoteEntries = listRes.entries || [];
+    const localIds = new Set(entries.map(e => e.id));
+    let changed = false;
+    remoteEntries.forEach(re => {
+      if (re.id && !localIds.has(re.id)){
+        entries.push({
+          id: re.id, moodScore: Number(re.moodScore), moodLabel: re.moodLabel, emotion: re.emotion,
+          triggerCategory: re.triggerCategory, triggerCustom: re.triggerCustom || '', note: re.note || null,
+          entryDate: re.entryDate, timeOfDay: re.timeOfDay, createdAt: re.createdAt,
+        });
+        localIds.add(re.id); changed = true;
+      }
+      if (re.id) syncedIds.add(re.id);
+    });
+    if (changed) await Storage.set(ENTRIES_KEY, JSON.stringify(entries));
+
+    const unsynced = entries.filter(e => !syncedIds.has(e.id));
+    for (const e of unsynced){
+      await sheetsFetchJson(SHEETS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'addEntry', userId, entry: entryForSync(e) }) });
+      syncedIds.add(e.id);
+    }
+    await persistSyncedIds();
+    if (profile) await pushProfileToSheets();
+
+    syncMeta.connected = true; syncMeta.lastSync = new Date().toISOString();
+    await persistSyncMeta();
+    if (currentView === 'dashboard') renderDashboard();
+    if (currentView === 'sync') renderAdminSync();
+  } catch(e){
+    syncMeta.connected = false;
+    await persistSyncMeta();
+  }
+}
+
+el('refreshBtn').addEventListener('click', async () => { await loadAllFromStorage(); await silentSync(); if (currentView==='dashboard') renderDashboard(); });
+el('manualSyncBtn') && el('manualSyncBtn').addEventListener('click', async () => {
+  setStatus(el('adminSyncStatus'), 'Menyinkronkan...', '');
+  await silentSync();
+  setStatus(el('adminSyncStatus'), syncMeta.connected ? 'Berhasil sinkron.' : 'Gagal terhubung ke Sheets — cek URL & deployment.', syncMeta.connected ? 'ok' : 'err');
+  renderAdminSync();
+});
+el('deleteSheetDataBtn') && el('deleteSheetDataBtn').addEventListener('click', async () => {
+  const userId = currentUserId();
+  if (!confirm(`Yakin hapus semua data milik "${userId}" di Sheets? Data lokal TIDAK terhapus.`)) return;
+  try{
+    await sheetsFetchJson(SHEETS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'deleteAll', userId }) });
+    setStatus(el('adminSyncStatus'), 'Data di Sheets untuk profil ini sudah dihapus.', 'ok');
+  } catch(e){ setStatus(el('adminSyncStatus'), 'Gagal menghapus: ' + e.message, 'err'); }
+});
+
+function renderAdminSync(){
+  if (!isAdmin) return;
+  el('syncUrlDisplay').textContent = SHEETS_WEB_APP_URL || '(belum diatur)';
+  el('syncConnStatus').textContent = syncMeta.connected ? 'Terhubung' : 'Belum terhubung / gagal';
+  el('syncLastTime').textContent = syncMeta.lastSync ? new Date(syncMeta.lastSync).toLocaleString('id-ID') : '–';
+  el('syncAiStatus').textContent = { not_attempted:'Belum dicoba', ok:'Berfungsi', error:'Gagal (lihat catatan di Apps Script)' }[syncMeta.aiStatus] || syncMeta.aiStatus;
+  el('syncUserIdLabel').textContent = currentUserId() || '–';
+}
+
+// ============================================================
+// Rekomendasi AI (Gemini, lewat proxy Apps Script)
+// Hanya kirim ringkasan terstruktur (cuaca/emosi/trigger/tanggal),
+// TIDAK PERNAH kirim catatan teks bebas.
+// ============================================================
+async function maybeGetAiRecommendation(){
+  if (entries.length < AI_MIN_ENTRIES || !SHEETS_WEB_APP_URL) return null;
+  const userId = currentUserId();
+
+  let cache = null;
+  const cacheRaw = await Storage.get(AI_CACHE_KEY);
+  if (cacheRaw) { try { cache = JSON.parse(cacheRaw); } catch(e){} }
+  if (cache && cache.userId === userId && cache.entryCount === entries.length) return cache;
+
+  try{
+    const recentSummary = [...entries].sort((a,b)=> a.entryDate<b.entryDate?1:-1).slice(0,15).map(e => ({
+      moodLabel: e.moodLabel, emotion: e.emotion, triggerCategory: TRIGGER_LABEL[e.triggerCategory] || e.triggerCategory,
+      triggerCustom: e.triggerCustom || '', entryDate: e.entryDate,
+    }));
+    const data = await sheetsFetchJson(SHEETS_WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'getAiRecommendation', copingStyles: (profile && profile.copingStyles) || [], recentSummary }),
+    });
+    const newCache = { recommendation: data.recommendation, entryCount: entries.length, userId, generatedAt: new Date().toISOString() };
+    await Storage.set(AI_CACHE_KEY, JSON.stringify(newCache));
+    syncMeta.aiStatus = 'ok'; await persistSyncMeta();
+    if (currentView === 'dashboard') renderRecommendations(computeInsights());
+    return newCache;
+  } catch(e){
+    syncMeta.aiStatus = 'error'; await persistSyncMeta();
+    return null;
+  }
+}
+
+// ============================================================
+// Insight (dengan filter trigger & rentang waktu)
+// ============================================================
+function average(nums){ if (nums.length===0) return 0; return nums.reduce((a,b)=>a+b,0)/nums.length; }
+function round1(n){ return Math.round(n*10)/10; }
+function groupAvg(rows, keyFn, valFn){
+  const buckets = {};
+  for (const r of rows){ const k = keyFn(r); (buckets[k]=buckets[k]||[]).push(valFn(r)); }
+  return Object.entries(buckets).map(([key,vals]) => ({ key, value: round1(average(vals)), count: vals.length })).sort((a,b)=> a.key<b.key?-1:1);
+}
+function countBy(rows, keyFn){ const c={}; for (const r of rows) c[keyFn(r)]=(c[keyFn(r)]||0)+1; return c; }
+function topKey(counts){ const e=Object.entries(counts); if(e.length===0) return null; e.sort((a,b)=>b[1]-a[1]); return e[0][0]; }
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function getRangeDays(){ const v = el('filterRange').value; return v === 'ALL' ? null : Number(v); }
+
+function computeInsights(){
+  const rangeDays = getRangeDays();
+  const triggerFilter = el('filterTrigger').value;
+
+  let sinceStr = null;
+  if (rangeDays !== null){ const since = new Date(); since.setDate(since.getDate()-rangeDays); sinceStr = since.toISOString().slice(0,10); }
+
+  const inRange = entries.filter(e => sinceStr === null || e.entryDate >= sinceStr);
+  const filtered = inRange.filter(e => triggerFilter === 'ALL' || e.triggerCategory === triggerFilter);
+
+  const result = { hasEntries: filtered.length > 0 };
+
+  if (filtered.length > 0){
+    result.avgMood = round1(average(filtered.map(e => e.moodScore)));
+    result.indeksPercent = Math.round((result.avgMood / 5) * 100);
+    const scores = filtered.map(e => e.moodScore);
+    result.highestLabel = WEATHER_BY_VALUE[Math.max(...scores)].label;
+    result.lowestLabel = WEATHER_BY_VALUE[Math.min(...scores)].label;
+    result.totalCount = filtered.length;
+    result.activeDays = new Set(filtered.map(e => e.entryDate)).size;
+    result.dailyTrend = groupAvg(filtered, e => e.entryDate, e => e.moodScore);
+  }
+
+  const triggerCounts = countBy(inRange, e => e.triggerCategory);
+  result.triggerCounts = triggerCounts;
+  if (inRange.length > 0){
+    const topTrig = topKey(triggerCounts);
+    result.topTrigger = topTrig;
+    result.topTriggerPercent = Math.round(((triggerCounts[topTrig] || 0) / inRange.length) * 100);
+  }
+  result.byTrigger = groupAvg(filtered, e => e.triggerCategory, e => e.moodScore);
+
+  const lowEntries = filtered.filter(e => e.moodScore <= LOW_THRESHOLD);
+  result.lowCount = lowEntries.length;
+  result.lowSharePercent = filtered.length > 0 ? Math.round((lowEntries.length / filtered.length) * 100) : 0;
+  result.dominantLowTrigger = topKey(countBy(lowEntries, e => e.triggerCategory));
+  result.dominantLowEmotion = topKey(countBy(lowEntries, e => e.emotion));
+
+  const datesDesc = [...new Set(filtered.map(e => e.entryDate))].sort((a,b)=> a<b?1:-1);
+  let streak = 0;
+  for (const d of datesDesc){
+    const dayAvg = average(filtered.filter(e => e.entryDate === d).map(e => e.moodScore));
+    if (dayAvg <= LOW_THRESHOLD) streak++; else break;
+  }
+  result.streak = streak;
+  result.concerning = streak >= 5;
+
+  const isOnboarded = !!(profile && profile.copingStyles && profile.copingStyles.length > 0);
+  result.isOnboarded = isOnboarded;
+  result.stylesCount = isOnboarded ? profile.copingStyles.length : 0;
+  let recommendations = [], proNudge = null;
+  if (isOnboarded){
+    const pool = COPING_ACTIVITIES.filter(a => profile.copingStyles.includes(a.style));
+    recommendations = shuffle(pool).slice(0, 3);
+    if (result.concerning && profile.wantsNudge){
+      const proPool = COPING_ACTIVITIES.filter(a => a.style === 'profesional');
+      proNudge = proPool[Math.floor(Math.random() * proPool.length)];
+    }
+  }
+  result.recommendations = recommendations;
+  result.proNudge = proNudge;
+
+  return result;
+}
+
+// ============================================================
+// Render Dashboard
+// ============================================================
+function renderDashboard(){
+  const rangeText = el('filterRange').options[el('filterRange').selectedIndex].text.toLowerCase();
+  el('rangeLabel').textContent = rangeText;
+
+  const ins = computeInsights();
+
+  el('s1Headline').textContent = (ins.indeksPercent ?? 0) + '%';
+  el('s1Desc').textContent = ins.hasEntries ? `Rata-rata ${ins.avgMood}/5` : 'Belum ada data';
+  el('s1Bar').style.width = (ins.indeksPercent ?? 0) + '%';
+  el('s1Highest').textContent = ins.highestLabel || '–';
+  el('s1Lowest').textContent = ins.lowestLabel || '–';
+  el('s1Count').textContent = ins.totalCount || 0;
+  el('s1Days').textContent = ins.activeDays || 0;
+
+  el('s2Headline').textContent = (ins.topTriggerPercent ?? 0) + '%';
+  el('s2Desc').textContent = ins.topTrigger ? `${TRIGGER_LABEL[ins.topTrigger]} paling sering dicatat` : 'Belum ada data';
+  el('s2Bar').style.width = (ins.topTriggerPercent ?? 0) + '%';
+  el('s2Keluarga').textContent = ins.triggerCounts.KELUARGA || 0;
+  el('s2Pertemanan').textContent = ins.triggerCounts.PERTEMANAN || 0;
+  el('s2Percintaan').textContent = ins.triggerCounts.PERCINTAAN || 0;
+  el('s2Pekerjaan').textContent = ins.triggerCounts.PEKERJAAN || 0;
+
+  el('s3Headline').textContent = ins.lowSharePercent + '%';
+  el('s3Bar').style.width = ins.lowSharePercent + '%';
+  el('s3Streak').textContent = ins.streak;
+  el('s3LowCount').textContent = ins.lowCount;
+  el('s3Emotion').textContent = ins.dominantLowEmotion || '–';
+  el('s3Status').textContent = ins.concerning ? 'Perlu perhatian' : 'Aman';
+  el('s3Status').className = 'mini-val ' + (ins.concerning ? 'mv-orange' : 'mv-mint');
+
+  const s4Percent = Math.round((ins.stylesCount / 5) * 100);
+  el('s4Headline').textContent = s4Percent + '%';
+  el('s4Desc').textContent = ins.isOnboarded ? 'Preferensi sudah terisi' : 'Preferensi belum diisi';
+  el('s4Bar').style.width = s4Percent + '%';
+  el('s4Styles').textContent = ins.stylesCount;
+  el('s4Reco').textContent = ins.recommendations.length + (ins.proNudge ? 1 : 0);
+  el('s4Nudge').textContent = (profile && profile.wantsNudge !== false) ? 'Aktif' : 'Nonaktif';
+  el('s4Onboard').textContent = ins.isOnboarded ? 'Selesai' : 'Belum';
+  el('s4Onboard').className = 'mini-val ' + (ins.isOnboarded ? 'mv-mint' : 'mv-orange');
+
+  const detailEmpty = el('detailEmpty'), detailContent = el('detailContent');
+  if (!ins.hasEntries){
+    detailEmpty.style.display = 'block'; detailContent.style.display = 'none';
+    el('detailSub').textContent = 'Belum ada catatan pada rentang & filter ini.';
+    return;
+  }
+  detailEmpty.style.display = 'none'; detailContent.style.display = 'block';
+  el('detailSub').textContent = `${ins.totalCount} catatan pada ${rangeText}${el('filterTrigger').value !== 'ALL' ? ' · ' + TRIGGER_LABEL[el('filterTrigger').value] : ''}.`;
+
+  const concernBanner = el('concernBanner');
+  if (ins.concerning){
+    concernBanner.style.display = 'block';
+    concernBanner.textContent = 'Mood kamu terlihat rendah beberapa hari berturut-turut. Tidak apa-apa untuk pelan-pelan — lihat rekomendasi di bawah, dan pertimbangkan bicara dengan orang yang kamu percaya.';
+  } else concernBanner.style.display = 'none';
+
+  renderSparkline(ins.dailyTrend || []);
+  renderTriggerBars(ins.byTrigger || []);
+  renderRecommendations(ins);
+  renderHistory();
+}
+
+function renderSparkline(dailyTrend){
+  const svg = el('sparkline');
+  const w = 600, h = 90, pad = 6;
+  if (dailyTrend.length < 2){
+    svg.innerHTML = `<text x="10" y="45" fill="#9a978d" font-size="12">Perlu minimal 2 hari data untuk menampilkan tren.</text>`;
+    return;
+  }
+  const values = dailyTrend.map(d => d.value);
+  const min = 1, max = 5;
+  const stepX = (w - pad*2) / (dailyTrend.length - 1);
+  const points = values.map((v,i) => { const x = pad+i*stepX; const y = h-pad-((v-min)/(max-min))*(h-pad*2); return `${x.toFixed(1)},${y.toFixed(1)}`; });
+  const lastVal = values[values.length-1];
+  const lastColor = WEATHER_BY_VALUE[Math.round(lastVal)]?.hex || '#ec1e79';
+  const lastPt = points[points.length-1].split(',');
+  svg.innerHTML = `<polyline points="${points.join(' ')}" fill="none" stroke="#ec1e79" stroke-width="2.5" /><circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="4" fill="${lastColor}" />`;
+}
+
+function renderTriggerBars(byTrigger){
+  const wrap = el('triggerBars');
+  wrap.innerHTML = '';
+  const order = ['KELUARGA','PERTEMANAN','PERCINTAAN','PEKERJAAN','LAINNYA'];
+  const sorted = [...byTrigger].sort((a,b) => order.indexOf(a.key) - order.indexOf(b.key));
+  if (sorted.length === 0){ wrap.innerHTML = '<div class="empty">Tidak ada data untuk filter ini.</div>'; return; }
+  sorted.forEach(t => {
+    const pct = (t.value/5)*100;
+    const color = TRIGGER_COLOR[t.key] || '#ec1e79';
+    const row = document.createElement('div');
+    row.className = 'tbar-row';
+    row.innerHTML = `<div class="tbar-label">${TRIGGER_LABEL[t.key] || t.key}</div><div class="tbar-track"><div class="tbar-fill" style="width:${pct}%; background:${color};"></div></div><div class="tbar-val" style="color:${color};">${t.value}</div>`;
+    wrap.appendChild(row);
+  });
+}
+
+function renderRecommendations(ins){
+  const grid = el('recoGrid'), nudgeEl = el('recoOnboardingNudge');
+  grid.innerHTML = '';
+  if (!ins.isOnboarded){ nudgeEl.style.display = 'block'; return; }
+  nudgeEl.style.display = 'none';
+
+  const items = [...ins.recommendations];
+  if (ins.proNudge) items.push({ ...ins.proNudge, isPro:true });
+
+  if (items.length === 0 && entries.length < AI_MIN_ENTRIES){
+    grid.innerHTML = '<div class="empty">Belum ada rekomendasi baru.</div>';
+  } else {
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'reco-card' + (item.isPro || item.style==='profesional' ? ' pro' : '');
+      card.innerHTML = `<div class="r-title">${item.title}</div><div class="r-desc">${item.desc}</div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  if (entries.length >= AI_MIN_ENTRIES){
+    Storage.get(AI_CACHE_KEY).then(raw => {
+      let cache = null;
+      if (raw) { try { cache = JSON.parse(raw); } catch(e){} }
+      if (cache && cache.userId === currentUserId() && cache.entryCount === entries.length){
+        const aiCard = document.createElement('div');
+        aiCard.className = 'reco-card ai';
+        aiCard.innerHTML = `<span class="ai-badge">✨ AI</span><div class="r-desc">${escapeHtml(cache.recommendation)}</div>`;
+        grid.prepend(aiCard);
+      } else {
+        maybeGetAiRecommendation();
+      }
+    });
+  }
+}
+
+function renderHistory(){
+  const rangeDays = getRangeDays();
+  const triggerFilter = el('filterTrigger').value;
+  let sinceStr = null;
+  if (rangeDays !== null){ const since = new Date(); since.setDate(since.getDate()-rangeDays); sinceStr = since.toISOString().slice(0,10); }
+
+  const filtered = entries
+    .filter(e => sinceStr === null || e.entryDate >= sinceStr)
+    .filter(e => triggerFilter === 'ALL' || e.triggerCategory === triggerFilter)
+    .sort((a,b) => a.entryDate < b.entryDate ? 1 : -1)
+    .slice(0, 20);
+
+  const list = el('historyList');
+  list.innerHTML = '';
+  filtered.forEach(e => {
+    const w = WEATHER_BY_VALUE[e.moodScore];
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    row.innerHTML = `
+      <span class="h-emoji">${w ? w.emoji : ''}</span>
+      <span class="h-date">${e.entryDate}</span>
+      <span class="h-emotion">${e.emotion || ''}</span>
+      <span class="h-trigger">${TRIGGER_LABEL[e.triggerCategory] || e.triggerCategory}${e.triggerCustom ? ' ('+escapeHtml(e.triggerCustom)+')' : ''}</span>
+      <span class="h-note">${e.note ? escapeHtml(e.note) : ''}</span>
+    `;
+    list.appendChild(row);
+  });
+}
+
+el('filterTrigger').addEventListener('change', () => { if (currentView==='dashboard') renderDashboard(); });
+el('filterRange').addEventListener('change', () => { if (currentView==='dashboard') renderDashboard(); });
+
+// ============================================================
+// Export CSV
+// ============================================================
+el('exportBtn').addEventListener('click', () => {
+  const header = 'Tanggal,Waktu,Cuaca,Emosi,Trigger,DetailTrigger,Catatan';
+  const rows = [...entries].sort((a,b) => a.entryDate < b.entryDate ? -1 : 1).map(e => {
+    const note = (e.note || '').replace(/"/g, '""');
+    const custom = (e.triggerCustom || '').replace(/"/g, '""');
+    return [e.entryDate, e.timeOfDay, e.moodLabel, e.emotion, TRIGGER_LABEL[e.triggerCategory], `"${custom}"`, `"${note}"`].join(',');
+  });
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'mood-tracker-export.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// ============================================================
+// Init
+// ============================================================
+async function loadAllFromStorage(){
+  const savedProfile = await Storage.get(PROFILE_KEY);
+  if (savedProfile) { try { profile = JSON.parse(savedProfile); } catch(e){ profile = null; } }
+  const savedEntries = await Storage.get(ENTRIES_KEY);
+  if (savedEntries) { try { entries = JSON.parse(savedEntries); } catch(e){ entries = []; } }
+  const savedSyncedIds = await Storage.get(SYNCED_IDS_KEY);
+  if (savedSyncedIds) { try { syncedIds = new Set(JSON.parse(savedSyncedIds)); } catch(e){ syncedIds = new Set(); } }
+  const savedSyncMeta = await Storage.get(SYNC_META_KEY);
+  if (savedSyncMeta) { try { syncMeta = JSON.parse(savedSyncMeta); } catch(e){} }
+}
+
+async function init(){
+  await loadAllFromStorage();
+  renderWeatherGrid();
+
+  if (profile && profile.onboarded){
+    el('onboardingGate').hidden = true;
+    el('shell').hidden = false;
+    updateGreeting();
+    switchView('landing');
+    silentSync();
+  } else {
+    el('onboardingGate').hidden = false;
+    el('shell').hidden = true;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

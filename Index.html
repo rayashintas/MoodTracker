@@ -571,7 +571,11 @@ const el = (id) => document.getElementById(id);
 function inferTimeOfDay(){ const h = new Date().getHours(); if (h < 11) return 'PAGI'; if (h < 15) return 'SIANG'; return 'MALAM'; }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function makeId(){ return `${Date.now()}-${Math.random().toString(36).slice(2,9)}`; }
-function currentUserId(){ return (profile && profile.name) ? profile.name.trim() : ''; }
+// Dipakai KHUSUS untuk identitas sinkron (Sheets & cache AI) — sengaja
+// disamakan huruf besar/kecil & spasi berlebih, supaya "Raya" dan "raya"
+// dikenali sebagai orang yang sama. Sapaan di layar tetap pakai profile.name
+// asli (huruf besar/kecil sesuai yang diketik), lihat updateGreeting().
+function currentUserId(){ return (profile && profile.name) ? profile.name.trim().toLowerCase().replace(/\s+/g,' ') : ''; }
 function setStatus(elm, text, kind){ elm.style.display = 'block'; elm.className = 'status' + (kind ? ' ' + kind : ''); elm.textContent = text; }
 function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
